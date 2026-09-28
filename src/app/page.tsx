@@ -1,103 +1,198 @@
-import Image from "next/image";
-
-export default function Home() {
+"use client";
+import { useState } from "react";
+export default function HomePage() {
+  const [showMenu, setShowMenu] = useState(false);
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#080808",
+        color: "#fff",
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+      {/* Header */}
+      <header
+        style={{
+          height: 70,
+          padding: "0 30px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: "1px solid #252525",
+          background: "#111",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "#ff7a00",
+              fontSize: 12,
+              fontWeight: 900,
+              letterSpacing: 3,
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            TEC MASALA
+          </div>
+          <div
+            style={{
+              fontSize: 12,
+              color: "#777",
+              marginTop: 3,
+            }}
           >
-            Read our docs
-          </a>
+            Management System
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={() => setShowMenu(!showMenu)}
+          style={{
+            padding: "10px 18px",
+            borderRadius: 8,
+            border: "1px solid #333",
+            background: "#191919",
+            color: "#fff",
+            cursor: "pointer",
+            fontWeight: 700,
+          }}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          Menu
+        </button>
+      </header>
+      {/* Main */}
+      <section
+        style={{
+          minHeight: "calc(100vh - 70px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 30,
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 900,
+            textAlign: "center",
+          }}
         >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <h1
+            style={{
+              fontSize: 48,
+              lineHeight: 1.1,
+              margin: "0 0 35px",
+              fontWeight: 900,
+            }}
+          >
+            Welcome to
+            <br />
+            <span style={{ color: "#ff7a00" }}>Tec Masala</span>
+          </h1>
+          {/* Cards */}
+          <div
+            style={{
+              marginTop: 20,
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 15,
+            }}
+          >
+            <InfoCard
+              title="Outlets"
+              text="Outlet management"
+            />
+            <InfoCard
+              title="Products"
+              text="Products & photos"
+            />
+            <InfoCard
+              title="Stock"
+              text="Stock management"
+            />
+            <InfoCard
+              title="Orders"
+              text="Order management"
+            />
+          </div>
+          {/* Login Button */}
+          <button
+            onClick={() => {
+              window.location.href = "/login";
+            }}
+            style={{
+              marginTop: 40,
+              padding: "14px 35px",
+              border: 0,
+              borderRadius: 10,
+              background: "#ff7a00",
+              color: "#111",
+              fontSize: 16,
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            Outlet Login
+          </button>
+          {showMenu && (
+            <div
+              style={{
+                margin: "25px auto 0",
+                maxWidth: 300,
+                padding: 18,
+                borderRadius: 12,
+                background: "#151515",
+                border: "1px solid #292929",
+                color: "#aaa",
+              }}
+            >
+              <div style={{ marginBottom: 10 }}>Dashboard</div>
+              <div style={{ marginBottom: 10 }}>Outlets</div>
+              <div style={{ marginBottom: 10 }}>Products</div>
+              <div style={{ marginBottom: 10 }}>Stock</div>
+              <div>Orders</div>
+            </div>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
+function InfoCard({
+  title,
+  text,
+}: {
+  title: string;
+  text: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: 22,
+        background: "#121212",
+        border: "1px solid #282828",
+        borderRadius: 14,
+        textAlign: "left",
+      }}
+    >
+      <div
+        style={{
+          color: "#ff7a00",
+          fontSize: 18,
+          fontWeight: 900,
+          marginBottom: 7,
+        }}
+      >
+        {title}
+      </div>
+      <div
+        style={{
+          color: "#777",
+          fontSize: 13,
+        }}
+      >
+        {text}
+      </div>
     </div>
   );
 }
