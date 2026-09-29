@@ -1,350 +1,327 @@
 "use client";
-import { ChangeEvent, useEffect, useState } from "react";
-import {
-  db,
-  makeId,
-  nowIso,
-  LocalProductPhoto,
-} from "@/lib/db";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+
 type Product = {
-  id: number;
+  id: string;
   name: string;
+  description: string;
   category: string;
-  price: string;
-  stock: string;
-  status: "Available" | "Low Stock" | "Out of Stock";
-  image?: string;
-  photoId?: string;
+  image: string | null;
+  is_active: boolean;
+  status: string;
+  price?: number;
 };
+
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: 1,
-      name: "Masala Tea",
-      category: "Beverages",
-      price: "40",
-      stock: "50",
-      status: "Available",
-    },
-    {
-      id: 2,
-      name: "Special Masala",
-      category: "Masala",
-      price: "120",
-      stock: "12",
-      status: "Low Stock",
-    },
-  ]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
-  const [stock, setStock] = useState("");
-  const [selectedPhoto, setSelectedPhoto] = useState("");
-  const [selectedFileName, setSelectedFileName] = useState("");
+
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   useEffect(() => {
-    loadPhotos();
+    loadProducts();
   }, []);
-  async function loadPhotos() {
-    try {
-      const photos = await db.productPhotos.toArray();
-      setProducts((current) =>
-        current.map((product) => {
-          const photo = photos.find(
-            (item) => item.productId === String(product.id)
-          );
-          if (!photo) {
-            return product;
-          }
-          return {
-            ...product,
-            image: photo.imageData,
-            photoId: photo.id,
-          };
-        })
-      );
-    } catch (error) {
-      console.error("Product photos load error:", error);
-    }
-  }
-  function handlePhotoChange(
-    event: ChangeEvent<HTMLInputElement>
-  ) {
-    const file = event.target.files?.[0];
-    if (!file) {
+
+  async function loadProducts() {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      alert("Products load झाले नाहीत.");
+      setLoading(false);
       return;
     }
-    if (!file.type.startsWith("image/")) {
-      alert("Please select an image file.");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image size maximum 5MB असावी.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === "string") {
-        setSelectedPhoto(result);
-        setSelectedFileName(file.name);
+
+    const productIds = (data || []).map((p) => p.id);
+
+    let priceData: any[] = [];
+
+    if (productIds.length > 0) {
+      const { data: prices, error: priceError } =
+        await supabase
+          .from("prices")
+          .select("*")
+          .in("product_id", productIds)
+          .eq("is_active", true);
+
+      if (!priceError) {
+        priceData = prices || [];
       }
-    };
-    reader.readAsDataURL(file);
-  }
-  function removeSelectedPhoto() {
-    setSelectedPhoto("");
-    setSelectedFileName("");
-  }
-  async function saveProductPhoto(
-    productId: number,
-    imageData: string
-  ) {
-    const now = nowIso();
-    const existing = await db.productPhotos
-      .where("productId")
-      .equals(String(productId))
-      .first();
-    if (existing) {
-      await db.productPhotos.update(existing.id, {
-        imageData,
-        fileName: selectedFileName || existing.fileName,
-        updatedAt: now,
-      });
-      return existing.id;
     }
-    const photoId = makeId("product_photo");
-    const photo: LocalProductPhoto = {
-      id: photoId,
-      productId: String(productId),
-      imageData,
-      fileName: selectedFileName || "product-image",
-      createdAt: now,
-      updatedAt: now,
-    };
-    await db.productPhotos.add(photo);
-    return photoId;
+
+    const finalProducts: Product[] = (data || []).map(
+      (product) => {
+        const productPrice = priceData.find(
+          (p) => p.product_id === product.id
+        );
+
+        return {
+          ...product,
+          price: productPrice?.price || 0,
+        };
+      }
+    );
+
+    setProducts(finalProducts);
+    setLoading(false);
   }
-  function calculateStatus(stockValue: string): Product["status"] {
-    const stockNumber = Number(stockValue);
-    if (stockNumber === 0) {
-      return "Out of Stock";
-    }
-    if (stockNumber <= 10) {
-      return "Low Stock";
-    }
-    return "Available";
-  }
+
   function resetForm() {
     setName("");
+    setDescription("");
     setCategory("");
     setPrice("");
-    setStock("");
-    setSelectedPhoto("");
-    setSelectedFileName("");
     setEditingId(null);
     setShowForm(false);
   }
+
   function startEdit(product: Product) {
     setEditingId(product.id);
     setName(product.name);
-    setCategory(product.category);
-    setPrice(product.price);
-    setStock(product.stock);
-    setSelectedPhoto(product.image || "");
-    setSelectedFileName("");
+    setDescription(product.description || "");
+    setCategory(product.category || "");
+    setPrice(String(product.price || ""));
     setShowForm(true);
+
     window.scrollTo({
       top: 0,
       behavior: "smooth",
     });
   }
-  async function saveProduct(event: React.FormEvent) {
+
+  async function saveProduct(
+    event: React.FormEvent
+  ) {
     event.preventDefault();
-    if (
-      !name.trim() ||
-      !category.trim() ||
-      !price ||
-      !stock
-    ) {
-      alert("Product details पूर्ण भरा.");
+
+    if (!name.trim()) {
+      alert("Product name भरा.");
       return;
     }
+
+    if (!category.trim()) {
+      alert("Category भरा.");
+      return;
+    }
+
+    if (!price) {
+      alert("Price भरा.");
+      return;
+    }
+
+    setSaving(true);
+
     try {
-      setSaving(true);
-      const status = calculateStatus(stock);
       /* =========================
-         EDIT EXISTING PRODUCT
+         UPDATE PRODUCT
       ========================= */
-      if (editingId !== null) {
-        let photoId: string | undefined;
-        if (selectedPhoto) {
-          photoId = await saveProductPhoto(
-            editingId,
-            selectedPhoto
-          );
+
+      if (editingId) {
+        const { error: productError } =
+          await supabase
+            .from("products")
+            .update({
+              name: name.trim(),
+              description: description.trim(),
+              category: category.trim(),
+              status: "Available",
+              is_active: true,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", editingId);
+
+        if (productError) {
+          console.error(productError);
+          alert("Product update झाला नाही.");
+          return;
         }
-        setProducts((current) =>
-          current.map((product) =>
-            product.id === editingId
-              ? {
-                  ...product,
-                  name: name.trim(),
-                  category: category.trim(),
-                  price,
-                  stock,
-                  status,
-                  image:
-                    selectedPhoto ||
-                    product.image ||
-                    undefined,
-                  photoId:
-                    photoId || product.photoId,
-                }
-              : product
-          )
-        );
+
+        const { data: existingPrice } =
+          await supabase
+            .from("prices")
+            .select("id")
+            .eq("product_id", editingId)
+            .eq("is_active", true)
+            .maybeSingle();
+
+        if (existingPrice) {
+          await supabase
+            .from("prices")
+            .update({
+              price: Number(price),
+              updated_at:
+                new Date().toISOString(),
+              status: "Active",
+              is_active: true,
+            })
+            .eq("id", existingPrice.id);
+        } else {
+          await supabase.from("prices").insert({
+            product_id: editingId,
+            price: Number(price),
+            is_active: true,
+            status: "Active",
+            created_at:
+              new Date().toISOString(),
+            updated_at:
+              new Date().toISOString(),
+          });
+        }
+
+        alert("Product updated successfully.");
         resetForm();
+        await loadProducts();
         return;
       }
+
       /* =========================
-         ADD NEW PRODUCT
+         ADD PRODUCT
       ========================= */
-      const productId = Date.now();
-      const newProduct: Product = {
-        id: productId,
-        name: name.trim(),
-        category: category.trim(),
-        price,
-        stock,
-        status,
-        image: selectedPhoto || undefined,
-      };
-      setProducts((current) => [
-        ...current,
-        newProduct,
-      ]);
-      if (selectedPhoto) {
-        const photoId = await saveProductPhoto(
-          productId,
-          selectedPhoto
-        );
-        setProducts((current) =>
-          current.map((product) =>
-            product.id === productId
-              ? {
-                  ...product,
-                  photoId,
-                }
-              : product
-          )
-        );
+
+      const { data: newProduct, error } =
+        await supabase
+          .from("products")
+          .insert({
+            name: name.trim(),
+            description: description.trim(),
+            category: category.trim(),
+            image: null,
+            is_active: true,
+            status: "Available",
+            created_at:
+              new Date().toISOString(),
+            updated_at:
+              new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+      if (error || !newProduct) {
+        console.error(error);
+        alert("Product save झाला नाही.");
+        return;
       }
+
+      /* =========================
+         SAVE FINAL SELLING PRICE
+      ========================= */
+
+      const { error: priceError } =
+        await supabase.from("prices").insert({
+          product_id: newProduct.id,
+          price: Number(price),
+          is_active: true,
+          status: "Active",
+          created_at:
+            new Date().toISOString(),
+          updated_at:
+            new Date().toISOString(),
+        });
+
+      if (priceError) {
+        console.error(priceError);
+        alert(
+          "Product save झाला पण Price save झाला नाही."
+        );
+        return;
+      }
+
+      alert("Product successfully added.");
+
       resetForm();
+      await loadProducts();
     } catch (error) {
-      console.error(
-        "Product save error:",
-        error
-      );
-      alert("Product save करताना समस्या आली.");
+      console.error(error);
+      alert("Something went wrong.");
     } finally {
       setSaving(false);
     }
   }
-  async function deleteProduct(id: number) {
+
+  async function deleteProduct(id: string) {
     const confirmed = window.confirm(
       "हा product delete करायचा आहे का?"
     );
-    if (!confirmed) {
+
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from("products")
+      .update({
+        is_active: false,
+        status: "Deleted",
+        deleted_at:
+          new Date().toISOString(),
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      alert("Product delete झाला नाही.");
       return;
     }
-    try {
-      const photo = await db.productPhotos
-        .where("productId")
-        .equals(String(id))
-        .first();
-      if (photo) {
-        await db.productPhotos.delete(photo.id);
-      }
-      setProducts((current) =>
-        current.filter(
-          (product) => product.id !== id
-        )
-      );
-      if (editingId === id) {
-        resetForm();
-      }
-    } catch (error) {
-      console.error(
-        "Product delete error:",
-        error
-      );
-      alert(
-        "Product delete करताना समस्या आली."
-      );
-    }
+
+    await supabase
+      .from("prices")
+      .update({
+        is_active: false,
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq("product_id", id);
+
+    await loadProducts();
   }
+
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#080808",
-        color: "#fff",
-        padding: "30px",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-        }}
-      >
+    <main style={pageStyle}>
+      <div style={containerStyle}>
+
         {/* HEADER */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 20,
-            marginBottom: 30,
-            flexWrap: "wrap",
-          }}
-        >
+
+        <header style={headerStyle}>
           <div>
-            <div
-              style={{
-                color: "#ff7a00",
-                fontSize: 13,
-                fontWeight: 900,
-                letterSpacing: 3,
-                marginBottom: 8,
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href =
+                  "/dashboard";
               }}
+              style={backButtonStyle}
             >
+              ← Dashboard
+            </button>
+
+            <div style={brandStyle}>
               TEC MASALA
             </div>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: 32,
-                fontWeight: 900,
-              }}
-            >
+
+            <h1 style={titleStyle}>
               Products
             </h1>
-            <p
-              style={{
-                margin: "8px 0 0",
-                color: "#888",
-                fontSize: 14,
-              }}
-            >
-              Products, photos, prices आणि stock
-              manage करा.
+
+            <p style={subtitleStyle}>
+              Final products manage करा.
             </p>
           </div>
+
           <button
             type="button"
             onClick={() => {
@@ -354,369 +331,251 @@ export default function ProductsPage() {
                 setShowForm(true);
               }
             }}
-            style={{
-              border: 0,
-              borderRadius: 10,
-              background: "#ff7a00",
-              color: "#111",
-              padding: "13px 20px",
-              fontSize: 14,
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
+            style={addButtonStyle}
           >
             {showForm
               ? "Close"
               : "+ Add Product"}
           </button>
-        </div>
-        {/* ADD / EDIT FORM */}
+        </header>
+
+        {/* FORM */}
+
         {showForm && (
           <form
             onSubmit={saveProduct}
-            style={{
-              background: "#151515",
-              border: "1px solid #292929",
-              borderRadius: 16,
-              padding: 22,
-              marginBottom: 25,
-            }}
+            style={formStyle}
           >
-            <h2
-              style={{
-                margin: "0 0 20px",
-                fontSize: 20,
-              }}
-            >
-              {editingId !== null
+            <h2 style={formTitleStyle}>
+              {editingId
                 ? "Edit Product"
                 : "Add New Product"}
             </h2>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(200px, 1fr))",
-                gap: 15,
-              }}
-            >
-              <input
-                value={name}
-                onChange={(e) =>
-                  setName(e.target.value)
-                }
-                placeholder="Product name"
-                style={inputStyle}
-              />
-              <input
-                value={category}
-                onChange={(e) =>
-                  setCategory(e.target.value)
-                }
-                placeholder="Category"
-                style={inputStyle}
-              />
-              <input
-                value={price}
-                onChange={(e) =>
-                  setPrice(e.target.value)
-                }
-                placeholder="Price"
-                type="number"
-                min="0"
-                style={inputStyle}
-              />
-              <input
-                value={stock}
-                onChange={(e) =>
-                  setStock(e.target.value)
-                }
-                placeholder="Stock"
-                type="number"
-                min="0"
-                style={inputStyle}
-              />
+
+            <div style={gridStyle}>
+
+              <div>
+                <label style={labelStyle}>
+                  Product Name
+                </label>
+
+                <input
+                  value={name}
+                  onChange={(e) =>
+                    setName(e.target.value)
+                  }
+                  placeholder="उदा. Fine Masala"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>
+                  Category
+                </label>
+
+                <input
+                  value={category}
+                  onChange={(e) =>
+                    setCategory(e.target.value)
+                  }
+                  placeholder="उदा. Masala"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>
+                  Price
+                </label>
+
+                <input
+                  value={price}
+                  onChange={(e) =>
+                    setPrice(e.target.value)
+                  }
+                  type="number"
+                  min="0"
+                  placeholder="100"
+                  style={inputStyle}
+                />
+              </div>
+
             </div>
-            {/* PHOTO */}
-            <div style={{ marginTop: 18 }}>
+
+            <div style={{ marginTop: 16 }}>
               <label style={labelStyle}>
-                Product Photo
+                Description
               </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoChange}
-                style={fileInputStyle}
+
+              <textarea
+                value={description}
+                onChange={(e) =>
+                  setDescription(e.target.value)
+                }
+                placeholder="Product description"
+                rows={4}
+                style={{
+                  ...inputStyle,
+                  resize: "vertical",
+                }}
               />
-              {selectedPhoto && (
-                <div
-                  style={{
-                    marginTop: 14,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 14,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <img
-                    src={selectedPhoto}
-                    alt="Product preview"
-                    style={previewImageStyle}
-                  />
-                  <div>
-                    {selectedFileName && (
-                      <div
-                        style={{
-                          color: "#ddd",
-                          fontSize: 13,
-                          marginBottom: 8,
-                        }}
-                      >
-                        {selectedFileName}
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={removeSelectedPhoto}
-                      style={
-                        removePhotoButtonStyle
-                      }
-                    >
-                      Remove Photo
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
-            {/* SAVE */}
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                marginTop: 20,
-                flexWrap: "wrap",
-              }}
-            >
+
+            <div style={buttonRowStyle}>
+
               <button
                 type="submit"
                 disabled={saving}
-                style={{
-                  border: 0,
-                  borderRadius: 9,
-                  background: saving
-                    ? "#884400"
-                    : "#ff7a00",
-                  color: "#111",
-                  padding: "12px 22px",
-                  fontWeight: 900,
-                  cursor: saving
-                    ? "not-allowed"
-                    : "pointer",
-                }}
+                style={saveButtonStyle}
               >
                 {saving
                   ? "Saving..."
-                  : editingId !== null
+                  : editingId
                   ? "Update Product"
                   : "Save Product"}
               </button>
-              {editingId !== null && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  style={{
-                    border: "1px solid #333",
-                    borderRadius: 9,
-                    background: "#111",
-                    color: "#aaa",
-                    padding: "12px 20px",
-                    fontWeight: 800,
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancel Edit
-                </button>
-              )}
+
+              <button
+                type="button"
+                onClick={resetForm}
+                style={cancelButtonStyle}
+              >
+                Cancel
+              </button>
+
             </div>
           </form>
         )}
+
         {/* SUMMARY */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: 15,
-            marginBottom: 25,
-          }}
-        >
+
+        <div style={summaryGridStyle}>
           <SummaryCard
             title="Total Products"
-            value={products.length.toString()}
+            value={products.length}
           />
+
           <SummaryCard
             title="Available"
-            value={products
-              .filter(
-                (p) => p.status === "Available"
-              )
-              .length.toString()}
+            value={
+              products.filter(
+                (p) =>
+                  p.status ===
+                  "Available"
+              ).length
+            }
           />
+
           <SummaryCard
             title="Low Stock"
-            value={products
-              .filter(
-                (p) => p.status === "Low Stock"
-              )
-              .length.toString()}
+            value={
+              products.filter(
+                (p) =>
+                  p.status ===
+                  "Low Stock"
+              ).length
+            }
           />
+
           <SummaryCard
             title="Out of Stock"
-            value={products
-              .filter(
+            value={
+              products.filter(
                 (p) =>
-                  p.status === "Out of Stock"
-              )
-              .length.toString()}
+                  p.status ===
+                  "Out of Stock"
+              ).length
+            }
           />
         </div>
-        {/* PRODUCTS */}
-        <div
-          style={{
-            background: "#111",
-            border: "1px solid #292929",
-            borderRadius: 16,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: 20,
-              borderBottom:
-                "1px solid #292929",
-            }}
-          >
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 19,
-              }}
-            >
+
+        {/* LIST */}
+
+        <section style={listStyle}>
+          <div style={listHeaderStyle}>
+            <h2 style={sectionTitleStyle}>
               Product List
             </h2>
+
+            <span style={countStyle}>
+              {products.length} Records
+            </span>
           </div>
-          {products.length === 0 ? (
-            <div
-              style={{
-                padding: 50,
-                textAlign: "center",
-                color: "#777",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 35,
-                  marginBottom: 10,
-                }}
-              >
+
+          {loading ? (
+            <div style={emptyStyle}>
+              Loading Products...
+            </div>
+          ) : products.length === 0 ? (
+            <div style={emptyStyle}>
+              <div style={{ fontSize: 35 }}>
                 📦
               </div>
-              <div
-                style={{
-                  color: "#fff",
-                  fontSize: 18,
-                  fontWeight: 900,
-                  marginBottom: 5,
-                }}
-              >
-                No Products
-              </div>
-              <div style={{ fontSize: 13 }}>
-                Add your first product.
-              </div>
+
+              <h3>No Products</h3>
+
+              <p>
+                + Add Product वर click करा.
+              </p>
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse:
-                    "collapse",
-                  minWidth: 950,
-                }}
-              >
+              <table style={tableStyle}>
                 <thead>
                   <tr>
                     <th style={thStyle}>
-                      Photo
-                    </th>
-                    <th style={thStyle}>
                       Product
                     </th>
+
+                    <th style={thStyle}>
+                      Description
+                    </th>
+
                     <th style={thStyle}>
                       Category
                     </th>
+
                     <th style={thStyle}>
                       Price
                     </th>
-                    <th style={thStyle}>
-                      Stock
-                    </th>
+
                     <th style={thStyle}>
                       Status
                     </th>
+
                     <th style={thStyle}>
                       Action
                     </th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {products.map(
                     (product) => (
                       <tr key={product.id}>
-                        {/* PHOTO */}
-                        <td style={tdStyle}>
-                          {product.image ? (
-                            <img
-                              src={
-                                product.image
-                              }
-                              alt={
-                                product.name
-                              }
-                              style={
-                                productImageStyle
-                              }
-                            />
-                          ) : (
-                            <div
-                              style={
-                                noPhotoStyle
-                              }
-                            >
-                              📷
-                            </div>
-                          )}
-                        </td>
-                        {/* PRODUCT */}
+
                         <td style={tdStyle}>
                           <strong>
                             {product.name}
                           </strong>
                         </td>
-                        {/* CATEGORY */}
+
+                        <td style={tdStyle}>
+                          {product.description ||
+                            "-"}
+                        </td>
+
                         <td style={tdStyle}>
                           {product.category}
                         </td>
-                        {/* PRICE */}
+
                         <td style={tdStyle}>
-                          ₹{product.price}
+                          ₹
+                          {product.price ||
+                            0}
                         </td>
-                        {/* STOCK */}
-                        <td style={tdStyle}>
-                          {product.stock}
-                        </td>
-                        {/* STATUS */}
+
                         <td style={tdStyle}>
                           <span
                             style={statusStyle(
@@ -726,14 +585,13 @@ export default function ProductsPage() {
                             {product.status}
                           </span>
                         </td>
-                        {/* ACTION */}
+
                         <td style={tdStyle}>
                           <div
                             style={{
-                              display: "flex",
+                              display:
+                                "flex",
                               gap: 8,
-                              flexWrap:
-                                "wrap",
                             }}
                           >
                             <button
@@ -749,6 +607,7 @@ export default function ProductsPage() {
                             >
                               Edit
                             </button>
+
                             <button
                               type="button"
                               onClick={() =>
@@ -764,6 +623,7 @@ export default function ProductsPage() {
                             </button>
                           </div>
                         </td>
+
                       </tr>
                     )
                   )}
@@ -771,116 +631,167 @@ export default function ProductsPage() {
               </table>
             </div>
           )}
-        </div>
-        {/* BACK */}
+        </section>
+
         <button
           type="button"
           onClick={() => {
             window.location.href =
               "/dashboard";
           }}
-          style={{
-            marginTop: 20,
-            border: "1px solid #333",
-            borderRadius: 9,
-            background: "#111",
-            color: "#aaa",
-            padding: "11px 17px",
-            cursor: "pointer",
-            fontWeight: 700,
-          }}
+          style={backDashboardStyle}
         >
           ← Back to Dashboard
         </button>
+
       </div>
     </main>
   );
 }
-/* =========================================================
-   SUMMARY CARD
-========================================================= */
+
 function SummaryCard({
   title,
   value,
 }: {
   title: string;
-  value: string;
+  value: number;
 }) {
   return (
-    <div
-      style={{
-        background: "#151515",
-        border: "1px solid #292929",
-        borderRadius: 14,
-        padding: 20,
-      }}
-    >
-      <div
-        style={{
-          color: "#888",
-          fontSize: 12,
-          fontWeight: 700,
-          marginBottom: 9,
-        }}
-      >
+    <div style={summaryCardStyle}>
+      <div style={summaryLabelStyle}>
         {title}
       </div>
-      <div
-        style={{
-          fontSize: 27,
-          fontWeight: 900,
-          color: "#ff7a00",
-        }}
-      >
+
+      <div style={summaryValueStyle}>
         {value}
       </div>
     </div>
   );
 }
-/* =========================================================
-   STATUS
-========================================================= */
+
 function statusStyle(
-  status: Product["status"]
+  status: string
 ): React.CSSProperties {
   if (status === "Available") {
     return {
-      display: "inline-block",
-      padding: "5px 9px",
+      padding: "6px 10px",
       borderRadius: 20,
-      background:
-        "rgba(50,200,100,.1)",
+      background: "rgba(50,200,100,.1)",
       color: "#60d890",
       fontSize: 11,
       fontWeight: 800,
     };
   }
+
   if (status === "Low Stock") {
     return {
-      display: "inline-block",
-      padding: "5px 9px",
+      padding: "6px 10px",
       borderRadius: 20,
-      background:
-        "rgba(255,180,0,.1)",
+      background: "rgba(255,180,0,.1)",
       color: "#ffbd45",
       fontSize: 11,
       fontWeight: 800,
     };
   }
+
   return {
-    display: "inline-block",
-    padding: "5px 9px",
+    padding: "6px 10px",
     borderRadius: 20,
-    background:
-      "rgba(255,70,70,.1)",
+    background: "rgba(255,70,70,.1)",
     color: "#ff7070",
     fontSize: 11,
     fontWeight: 800,
   };
 }
-/* =========================================================
-   STYLES
-========================================================= */
+
+const pageStyle: React.CSSProperties = {
+  minHeight: "100vh",
+  background: "#080808",
+  color: "#fff",
+  padding: 30,
+  fontFamily: "Arial, sans-serif",
+};
+
+const containerStyle: React.CSSProperties = {
+  maxWidth: 1200,
+  margin: "0 auto",
+};
+
+const headerStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-end",
+  gap: 20,
+  marginBottom: 30,
+  flexWrap: "wrap",
+};
+
+const backButtonStyle: React.CSSProperties = {
+  border: 0,
+  background: "transparent",
+  color: "#888",
+  padding: 0,
+  marginBottom: 15,
+  cursor: "pointer",
+};
+
+const brandStyle: React.CSSProperties = {
+  color: "#ff7a00",
+  fontSize: 13,
+  fontWeight: 900,
+  letterSpacing: 3,
+};
+
+const titleStyle: React.CSSProperties = {
+  margin: "7px 0 4px",
+  fontSize: 32,
+  fontWeight: 900,
+};
+
+const subtitleStyle: React.CSSProperties = {
+  margin: 0,
+  color: "#888",
+  fontSize: 14,
+};
+
+const addButtonStyle: React.CSSProperties = {
+  border: 0,
+  borderRadius: 10,
+  background: "#ff7a00",
+  color: "#111",
+  padding: "13px 20px",
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
+const formStyle: React.CSSProperties = {
+  background: "#151515",
+  border: "1px solid #292929",
+  borderRadius: 16,
+  padding: 22,
+  marginBottom: 25,
+};
+
+const formTitleStyle: React.CSSProperties = {
+  margin: "0 0 20px",
+  fontSize: 20,
+};
+
+const gridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns:
+    "repeat(auto-fit,minmax(220px,1fr))",
+  gap: 15,
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  color: "#aaa",
+  fontSize: 13,
+  fontWeight: 800,
+  marginBottom: 7,
+};
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
   boxSizing: "border-box",
@@ -892,58 +803,106 @@ const inputStyle: React.CSSProperties = {
   outline: "none",
   fontSize: 14,
 };
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: 8,
-  color: "#aaa",
-  fontSize: 13,
-  fontWeight: 800,
-};
-const fileInputStyle: React.CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: 11,
-  borderRadius: 9,
-  border: "1px solid #333",
-  background: "#0d0d0d",
-  color: "#aaa",
-  fontSize: 13,
-};
-const previewImageStyle: React.CSSProperties = {
-  width: 90,
-  height: 90,
-  objectFit: "cover",
-  borderRadius: 10,
-  border: "1px solid #333",
-};
-const productImageStyle: React.CSSProperties = {
-  width: 52,
-  height: 52,
-  objectFit: "cover",
-  borderRadius: 9,
-  border: "1px solid #333",
-};
-const noPhotoStyle: React.CSSProperties = {
-  width: 52,
-  height: 52,
+
+const buttonRowStyle: React.CSSProperties = {
   display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
+  gap: 10,
+  marginTop: 20,
+};
+
+const saveButtonStyle: React.CSSProperties = {
+  border: 0,
   borderRadius: 9,
-  background: "#1b1b1b",
-  color: "#777",
-  fontSize: 20,
-};
-const removePhotoButtonStyle: React.CSSProperties = {
-  border: "1px solid #482020",
-  borderRadius: 7,
-  background: "#211010",
-  color: "#ff7070",
-  padding: "7px 10px",
+  background: "#ff7a00",
+  color: "#111",
+  padding: "12px 22px",
+  fontWeight: 900,
   cursor: "pointer",
-  fontSize: 11,
-  fontWeight: 800,
 };
+
+const cancelButtonStyle: React.CSSProperties = {
+  border: "1px solid #333",
+  borderRadius: 9,
+  background: "#111",
+  color: "#aaa",
+  padding: "12px 20px",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const summaryGridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns:
+    "repeat(auto-fit,minmax(180px,1fr))",
+  gap: 15,
+  marginBottom: 25,
+};
+
+const summaryCardStyle: React.CSSProperties = {
+  background: "#151515",
+  border: "1px solid #292929",
+  borderRadius: 14,
+  padding: 20,
+};
+
+const summaryLabelStyle: React.CSSProperties = {
+  color: "#888",
+  fontSize: 12,
+  fontWeight: 700,
+  marginBottom: 9,
+};
+
+const summaryValueStyle: React.CSSProperties = {
+  color: "#ff7a00",
+  fontSize: 27,
+  fontWeight: 900,
+};
+
+const listStyle: React.CSSProperties = {
+  background: "#111",
+  border: "1px solid #292929",
+  borderRadius: 16,
+  overflow: "hidden",
+};
+
+const listHeaderStyle: React.CSSProperties = {
+  padding: 20,
+  borderBottom: "1px solid #292929",
+  display: "flex",
+  justifyContent: "space-between",
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: 19,
+};
+
+const countStyle: React.CSSProperties = {
+  color: "#777",
+  fontSize: 13,
+};
+
+const tableStyle: React.CSSProperties = {
+  width: "100%",
+  minWidth: 850,
+  borderCollapse: "collapse",
+};
+
+const thStyle: React.CSSProperties = {
+  textAlign: "left",
+  padding: "14px 18px",
+  color: "#777",
+  fontSize: 12,
+  borderBottom: "1px solid #292929",
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: "16px 18px",
+  color: "#ccc",
+  fontSize: 13,
+  borderBottom: "1px solid #202020",
+};
+
 const editButtonStyle: React.CSSProperties = {
   border: "1px solid #4b351f",
   borderRadius: 7,
@@ -953,6 +912,7 @@ const editButtonStyle: React.CSSProperties = {
   cursor: "pointer",
   fontWeight: 800,
 };
+
 const deleteButtonStyle: React.CSSProperties = {
   border: "1px solid #482020",
   borderRadius: 7,
@@ -962,19 +922,19 @@ const deleteButtonStyle: React.CSSProperties = {
   cursor: "pointer",
   fontWeight: 700,
 };
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "14px 18px",
+
+const emptyStyle: React.CSSProperties = {
+  padding: 50,
+  textAlign: "center",
   color: "#777",
-  fontSize: 12,
-  fontWeight: 800,
-  borderBottom:
-    "1px solid #292929",
 };
-const tdStyle: React.CSSProperties = {
-  padding: "16px 18px",
-  color: "#ccc",
-  fontSize: 13,
-  borderBottom:
-    "1px solid #202020",
+
+const backDashboardStyle: React.CSSProperties = {
+  marginTop: 20,
+  border: "1px solid #333",
+  borderRadius: 9,
+  background: "#111",
+  color: "#aaa",
+  padding: "11px 17px",
+  cursor: "pointer",
 };
