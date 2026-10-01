@@ -1,5 +1,10 @@
 "use client";
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import {
+  ChangeEvent,
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
 import { supabase } from "@/lib/supabase";
 type Product = {
   id: string;
@@ -60,26 +65,21 @@ export default function ProductsPage() {
   ) {
     const file = event.target.files?.[0];
     if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-  }
-  async function uploadImage(file: File) {
-    const extension =
-      file.name.split(".").pop() || "jpg";
-    const fileName = `${crypto.randomUUID()}.${extension}`;
-    const { error } = await supabase.storage
-      .from("product-images")
-      .upload(fileName, file, {
-        upsert: true,
-      });
-    if (error) {
-      console.error(error);
-      throw new Error("Photo upload झाला नाही.");
+    if (!file.type.startsWith("image/")) {
+      alert("फक्त image file निवडा.");
+      return;
     }
-    const { data } = supabase.storage
-      .from("product-images")
-      .getPublicUrl(fileName);
-    return data.publicUrl;
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.onerror = () => {
+      setImageFile(null);
+      setImagePreview(null);
+      alert("Photo read झाला नाही.");
+    };
+    reader.readAsDataURL(file);
   }
   function editProduct(product: Product) {
     setEditingId(product.id);
@@ -115,17 +115,17 @@ export default function ProductsPage() {
       alert("KG / Weight भरा.");
       return;
     }
+    if (!imagePreview) {
+      alert("Product Photo निवडा.");
+      return;
+    }
     setSaving(true);
     try {
-      let imageUrl = imagePreview;
-      if (imageFile) {
-        imageUrl = await uploadImage(imageFile);
-      }
       const productData = {
         name: name.trim(),
         category: category.trim(),
         description: description.trim() || null,
-        image: imageUrl,
+        image: imagePreview,
         weight: Number(weight),
         is_active: true,
         status: "Available",
@@ -138,7 +138,9 @@ export default function ProductsPage() {
           .eq("id", editingId);
         if (error) {
           console.error(error);
-          alert("Product update झाला नाही.");
+          alert(
+            `Product update झाला नाही.\n\n${error.message}`
+          );
           return;
         }
         alert("Product updated successfully.");
@@ -151,7 +153,9 @@ export default function ProductsPage() {
           });
         if (error) {
           console.error(error);
-          alert("Product save झाला नाही.");
+          alert(
+            `Product save झाला नाही.\n\n${error.message}`
+          );
           return;
         }
         alert("Product added successfully.");
@@ -185,7 +189,9 @@ export default function ProductsPage() {
       .eq("id", id);
     if (error) {
       console.error(error);
-      alert("Product delete झाला नाही.");
+      alert(
+        `Product delete झाला नाही.\n\n${error.message}`
+      );
       return;
     }
     await loadProducts();
@@ -211,7 +217,7 @@ export default function ProductsPage() {
               Products
             </h1>
             <p style={subtitleStyle}>
-              Final products manage करा.
+              Product master manage करा.
             </p>
           </div>
           <button
@@ -567,13 +573,6 @@ const previewStyle: React.CSSProperties = {
   marginTop: 10,
   border: "1px solid #333",
 };
-const listImageStyle: React.CSSProperties = {
-  width: 55,
-  height: 55,
-  objectFit: "cover",
-  borderRadius: 8,
-  border: "1px solid #333",
-};
 const buttonRowStyle: React.CSSProperties = {
   display: "flex",
   gap: 10,
@@ -634,6 +633,13 @@ const tdStyle: React.CSSProperties = {
   color: "#ccc",
   fontSize: 13,
   borderBottom: "1px solid #202020",
+};
+const listImageStyle: React.CSSProperties = {
+  width: 55,
+  height: 55,
+  objectFit: "cover",
+  borderRadius: 8,
+  border: "1px solid #333",
 };
 const statusStyle: React.CSSProperties = {
   padding: "6px 10px",
