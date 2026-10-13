@@ -21,6 +21,12 @@ const modules: Module[] = [
     path: "/dashboard/outlet-logins",
   },
   {
+    title: "Co-owner Login",
+    description: "Co-owner किंवा Manager साठी स्वतंत्र Login तयार करा.",
+    icon: "👥",
+    path: "/dashboard/coowner-login",
+  },
+  {
     title: "Products",
     description: "Products आणि categories manage करा.",
     icon: "📦",
