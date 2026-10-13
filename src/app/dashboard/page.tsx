@@ -15,6 +15,12 @@ const modules: Module[] = [
     path: "/dashboard/outlets",
   },
   {
+    title: "Outlet Login IDs",
+    description: "प्रत्येक outlet चे Login ID आणि Password तयार किंवा बदला.",
+    icon: "🔐",
+    path: "/dashboard/outlet-logins",
+  },
+  {
     title: "Products",
     description: "Products आणि categories manage करा.",
     icon: "📦",
