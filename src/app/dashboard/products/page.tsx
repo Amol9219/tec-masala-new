@@ -128,7 +128,6 @@ export default function ProductsPage() {
         image: imagePreview,
         weight: Number(weight),
         is_active: true,
-        status: "Available",
         updated_at: new Date().toISOString(),
       };
       if (editingId) {
@@ -145,7 +144,7 @@ export default function ProductsPage() {
         }
         alert("Product updated successfully.");
       } else {
-        console.log("Product data being saved:", productData);
+        console.log("Product data being saved (status uses database default):", productData);
         const { error } = await supabase
           .from("products")
           .insert({
