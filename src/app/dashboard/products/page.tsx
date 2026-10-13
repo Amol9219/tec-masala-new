@@ -153,9 +153,14 @@ export default function ProductsPage() {
             created_at: new Date().toISOString(),
           });
         if (error) {
-          console.error(error);
+          console.error("Product insert failed:", {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint,
+          });
           alert(
-            `Product save झाला नाही.\n\n${error.message}`
+            `Product save झाला नाही.\n\nMessage: ${error.message}\nCode: ${error.code || "-"}\nDetails: ${error.details || "-"}\nHint: ${error.hint || "-"}`
           );
           return;
         }
