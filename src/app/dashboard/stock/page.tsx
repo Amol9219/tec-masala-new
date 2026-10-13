@@ -9,26 +9,7 @@ type StockItem = {
   unit: string;
   updatedAt: string;
 };
-const initialStock: StockItem[] = [
-  {
-    id: 1,
-    productName: "Masala Tea",
-    category: "Beverages",
-    quantity: 50,
-    minimumQuantity: 10,
-    unit: "Pack",
-    updatedAt: "Today",
-  },
-  {
-    id: 2,
-    productName: "Special Masala",
-    category: "Masala",
-    quantity: 12,
-    minimumQuantity: 10,
-    unit: "Kg",
-    updatedAt: "Today",
-  },
-];
+const initialStock: StockItem[] = [];
 export default function StockPage() {
   const [stock, setStock] =
     useState<StockItem[]>(initialStock);

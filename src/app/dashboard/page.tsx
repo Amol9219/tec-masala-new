@@ -15,6 +15,18 @@ const modules: Module[] = [
     path: "/dashboard/outlets",
   },
   {
+    title: "Outlet Login IDs",
+    description: "प्रत्येक outlet चे Login ID आणि Password तयार किंवा बदला.",
+    icon: "🔐",
+    path: "/dashboard/outlet-logins",
+  },
+  {
+    title: "Co-owner Login",
+    description: "Co-owner किंवा Manager साठी स्वतंत्र Login तयार करा.",
+    icon: "👥",
+    path: "/dashboard/coowner-login",
+  },
+  {
     title: "Products",
     description: "Products आणि categories manage करा.",
     icon: "📦",
@@ -55,6 +67,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
   const [role, setRole] = useState("Unknown");
+  const visibleModules = modules.filter((module) => {
+    if (role === "Owner") return true;
+    const permitted = ["/dashboard", "/dashboard/products", "/dashboard/stock", "/dashboard/prices", "/dashboard/orders"];
+    return (role === "Manager" || role === "Staff") && permitted.includes(module.path);
+  });
   useEffect(() => {
     checkUser();
   }, []);
@@ -187,11 +204,11 @@ export default function DashboardPage() {
               </p>
             </div>
             <div style={countStyle}>
-              {modules.length} Modules
+              {visibleModules.length} Modules
             </div>
           </div>
           <div style={gridStyle}>
-            {modules.map((module) => (
+            {visibleModules.map((module) => (
               <button
                 key={module.title}
                 type="button"

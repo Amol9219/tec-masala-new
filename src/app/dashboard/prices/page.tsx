@@ -9,26 +9,7 @@ type PriceItem = {
   purchasePrice: number;
   updatedAt: string;
 };
-const initialPrices: PriceItem[] = [
-  {
-    id: 1,
-    productName: "Masala Tea",
-    category: "Beverages",
-    unit: "Pack",
-    sellingPrice: 40,
-    purchasePrice: 25,
-    updatedAt: "Today",
-  },
-  {
-    id: 2,
-    productName: "Special Masala",
-    category: "Masala",
-    unit: "Kg",
-    sellingPrice: 120,
-    purchasePrice: 80,
-    updatedAt: "Today",
-  },
-];
+const initialPrices: PriceItem[] = [];
 export default function PricesPage() {
   const [prices, setPrices] =
     useState<PriceItem[]>(initialPrices);

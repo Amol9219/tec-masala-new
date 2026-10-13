@@ -8,6 +8,7 @@ import {
   nowIso,
   deleteUser as deleteUserFromDb,
 } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 const initialUsers: LocalUser[] = [
   {
     id: "user_admin_default",
@@ -71,6 +72,20 @@ export default function UsersPage() {
     try {
       setLoadingUsers(true);
       setError("");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        window.location.replace("/login");
+        return;
+      }
+      const { data: roleRow, error: roleError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (roleError || roleRow?.role !== "Owner") {
+        window.location.replace("/dashboard");
+        return;
+      }
       let databaseUsers = await db.users
         .where("status")
         .equals("active")

@@ -19,6 +19,8 @@ type Product = {
 };
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [role, setRole] = useState<string>("Unknown");
+  const canManageProducts = role === "Owner" || role === "Manager";
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -30,7 +32,17 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
-    loadProducts();
+    async function initialize() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        window.location.replace("/login");
+        return;
+      }
+      const { data } = await supabase.from("user_roles").select("role").eq("user_id", user.id).maybeSingle();
+      setRole(data?.role ?? "Unknown");
+      await loadProducts();
+    }
+    void initialize();
   }, []);
   async function loadProducts() {
     setLoading(true);
@@ -222,10 +234,10 @@ export default function ProductsPage() {
               Products
             </h1>
             <p style={subtitleStyle}>
-              Product master manage करा.
+              {canManageProducts ? "Product master manage करा." : "उपलब्ध मसाल्यांची यादी पहा आणि ऑर्डरसाठी निवडा."}
             </p>
           </div>
-          <button
+          {canManageProducts && <button
             type="button"
             onClick={() => {
               if (showForm) {
@@ -237,7 +249,7 @@ export default function ProductsPage() {
             style={addButtonStyle}
           >
             {showForm ? "Close" : "+ Add Product"}
-          </button>
+          </button>}
         </header>
         {showForm && (
           <form
@@ -396,9 +408,7 @@ export default function ProductsPage() {
                     <th style={thStyle}>
                       Status
                     </th>
-                    <th style={thStyle}>
-                      Action
-                    </th>
+                    {canManageProducts && <th style={thStyle}>Action</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -434,7 +444,7 @@ export default function ProductsPage() {
                           {product.status}
                         </span>
                       </td>
-                      <td style={tdStyle}>
+                      {canManageProducts && <td style={tdStyle}>
                         <div
                           style={{
                             display: "flex",
@@ -460,8 +470,7 @@ export default function ProductsPage() {
                             Delete
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                      </td>}
                   ))}
                 </tbody>
               </table>

@@ -15,35 +15,7 @@ type Order = {
   status: OrderStatus;
   orderDate: string;
 };
-const initialOrders: Order[] = [
-  {
-    id: 1,
-    orderNumber: "ORD-1001",
-    outlet: "Pune Outlet",
-    items: 5,
-    total: 1250,
-    status: "Pending",
-    orderDate: "Today",
-  },
-  {
-    id: 2,
-    orderNumber: "ORD-1002",
-    outlet: "Mumbai Outlet",
-    items: 8,
-    total: 2480,
-    status: "Confirmed",
-    orderDate: "Today",
-  },
-  {
-    id: 3,
-    orderNumber: "ORD-1003",
-    outlet: "Nashik Outlet",
-    items: 3,
-    total: 840,
-    status: "Processing",
-    orderDate: "Yesterday",
-  },
-];
+const initialOrders: Order[] = [];
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [search, setSearch] = useState("");
