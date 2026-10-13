@@ -48,7 +48,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       const role = roleRow.role as string;
       const owner = role === "Owner";
       const ownerOnlyRoute = ownerOnly.some((path) => pathname === path || pathname.startsWith(path + "/"));
-      const allowedRoute = allowedForNonOwners.some((path) => pathname === path || pathname.startsWith(path + "/"));
+      const allowedRoute = pathname === "/dashboard" || allowedForNonOwners.slice(1).some((path) => pathname === path || pathname.startsWith(path + "/"));
       const canOpen = owner || (!ownerOnlyRoute && allowedRoute && (role === "Manager" || role === "Staff"));
       setAllowed(canOpen);
       setLoading(false);
