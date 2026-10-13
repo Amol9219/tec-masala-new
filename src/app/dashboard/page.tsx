@@ -69,8 +69,13 @@ export default function DashboardPage() {
   const [role, setRole] = useState("Unknown");
   const visibleModules = modules.filter((module) => {
     if (role === "Owner") return true;
-    const permitted = ["/dashboard", "/dashboard/products", "/dashboard/stock", "/dashboard/prices", "/dashboard/orders"];
-    return (role === "Manager" || role === "Staff") && permitted.includes(module.path);
+    if (role === "Manager") {
+      return ["/dashboard", "/dashboard/products", "/dashboard/stock", "/dashboard/prices", "/dashboard/orders"].includes(module.path);
+    }
+    if (role === "Staff") {
+      return ["/dashboard/products", "/dashboard/orders"].includes(module.path);
+    }
+    return false;
   });
   useEffect(() => {
     checkUser();
