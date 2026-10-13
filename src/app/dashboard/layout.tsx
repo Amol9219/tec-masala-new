@@ -49,7 +49,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       const owner = role === "Owner";
       const ownerOnlyRoute = ownerOnly.some((path) => pathname === path || pathname.startsWith(path + "/"));
       const allowedRoute = pathname === "/dashboard" || allowedForNonOwners.slice(1).some((path) => pathname === path || pathname.startsWith(path + "/"));
-      const canOpen = owner || (!ownerOnlyRoute && allowedRoute && (role === "Manager" || role === "Staff"));
+      const staffRoute = pathname === "/dashboard" || ["/dashboard/products", "/dashboard/orders"].some((path) => pathname === path || pathname.startsWith(path + "/"));
+      const canOpen = owner || (!ownerOnlyRoute && (
+        (role === "Manager" && allowedRoute) ||
+        (role === "Staff" && staffRoute)
+      ));
       setAllowed(canOpen);
       setLoading(false);
       if (!canOpen) window.location.replace("/dashboard");
