@@ -67,6 +67,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
   const [role, setRole] = useState("Unknown");
+  const visibleModules = modules.filter((module) => {
+    if (role === "Owner") return true;
+    const permitted = ["/dashboard", "/dashboard/products", "/dashboard/stock", "/dashboard/prices", "/dashboard/orders"];
+    return (role === "Manager" || role === "Staff") && permitted.includes(module.path);
+  });
   useEffect(() => {
     checkUser();
   }, []);
@@ -199,11 +204,11 @@ export default function DashboardPage() {
               </p>
             </div>
             <div style={countStyle}>
-              {modules.length} Modules
+              {visibleModules.length} Modules
             </div>
           </div>
           <div style={gridStyle}>
-            {modules.map((module) => (
+            {visibleModules.map((module) => (
               <button
                 key={module.title}
                 type="button"
