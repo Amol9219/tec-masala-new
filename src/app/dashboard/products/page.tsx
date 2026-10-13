@@ -145,6 +145,7 @@ export default function ProductsPage() {
         }
         alert("Product updated successfully.");
       } else {
+        console.log("Product data being saved:", productData);
         const { error } = await supabase
           .from("products")
           .insert({
